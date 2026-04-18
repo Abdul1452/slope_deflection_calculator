@@ -1,3 +1,16 @@
+/**
+ * Landing Page — app/page.tsx
+ *
+ * The home/index route (/). Displays a hero section with links to the two
+ * calculators, followed by three feature-highlight cards.
+ *
+ * Uses Framer Motion for:
+ *   - Scroll parallax on the decorative background blobs (useScroll + useTransform)
+ *   - Fade-in/slide-up entrance animations for the hero and feature cards
+ *
+ * This is a Client Component ("use client") because it uses React hooks
+ * (useRef, useScroll) which are not available in Server Components.
+ */
 "use client";
 
 import { Button } from "@/components/ui/button";

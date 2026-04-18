@@ -1,3 +1,22 @@
+/**
+ * ColumnForm — app/components/frame-forms/column-form.tsx
+ *
+ * Renders one input card per column for the portal frame calculator.
+ *
+ * Each card contains:
+ *   - Length (m)
+ *   - Moment of Inertia
+ *   - Support Type — Radix Select: fixed / hinged / roller / none
+ *   - Load Type    — Radix Select populated from FRAME_FRAME_LOAD_TYPES
+ *   - Load Magnitude (kN) — shown only when loadType ≠ NONE
+ *
+ * Calls onColumnChange(index, field, value) for every field change,
+ * which merges the update into the parent formData.columns array.
+ *
+ * Props:
+ *   columns        — Array of Column objects (one per column in the frame).
+ *   onColumnChange — Partial update callback: (columnIndex, fieldName, newValue).
+ */
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {

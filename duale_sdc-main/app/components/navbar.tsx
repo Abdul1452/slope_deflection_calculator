@@ -1,3 +1,19 @@
+/**
+ * Navbar — app/components/navbar.tsx
+ *
+ * Fixed top navigation bar rendered in the root layout.
+ *
+ * Features:
+ * - Slides in from the top on first render using Framer Motion.
+ * - Highlights the active route (/beams or /frames) with an indigo underline.
+ * - Theme toggle button: clicking cycles between "dark" and "light" using
+ *   next-themes' setTheme. The Sun and Moon icons use CSS scale transforms
+ *   to cross-fade in and out.
+ * - Frosted glass appearance via `backdrop-blur-md` and a semi-transparent
+ *   background colour.
+ *
+ * Uses `usePathname()` (Next.js App Router) to detect the current route.
+ */
 "use client";
 
 import { motion } from "framer-motion";

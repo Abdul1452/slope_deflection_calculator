@@ -1,3 +1,19 @@
+/**
+ * SpanInput — app/components/span-inputs.tsx
+ *
+ * A single span configuration card for the beams calculator form.
+ *
+ * Renders fields for one span: length, moment of inertia, start/end support
+ * types, load type, load magnitude, and (conditionally) point load distances.
+ *
+ * Uses the `updateSpan` helper to merge changes into the Span object and
+ * notify the parent page via `onChange`.
+ *
+ * Props:
+ *   span    — Current span data object.
+ *   index   — Zero-based span index (used to generate the A→B label).
+ *   onChange — Callback invoked with the updated span on any field change.
+ */
 "use client";
 
 import { Span, SupportType, LoadType, PointLoadDistances } from "@/typings";

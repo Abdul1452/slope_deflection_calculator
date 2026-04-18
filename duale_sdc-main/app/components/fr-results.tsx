@@ -1,3 +1,28 @@
+/**
+ * FramesResults — app/components/fr-results.tsx
+ *
+ * Displays the complete portal frame analysis results in a stacked layout.
+ *
+ * Uses two inline helper components for consistent styling:
+ *   - ResultCard   — a semi-transparent rounded card with hover effect.
+ *   - SectionTitle — an h3 heading for each result section.
+ *
+ * Sections rendered (in order):
+ *   1. Fixed End Moments — columns then beam.
+ *   2. Slope-Deflection Equations — per member (C1, C2, BC).
+ *   3. Boundary Equations — eq1, eq2, and optional eq3.
+ *   4. Shear Equation — raw string, simplified string, and solved unknowns.
+ *   5. Final Moments — numerical member-end moments.
+ *   6. Horizontal Reactions — H1, H2.
+ *   7. Vertical Reactions — RA, RD.
+ *   8. Column BMSF — section-by-section BM and SF values for each column.
+ *   9. Beam BMSF — BM and SF values along the beam.
+ *      Display heuristic: if x.length === 21 → UDL case, show only start/end;
+ *      otherwise → point load case, show all section points.
+ *
+ * Props:
+ *   results — The complete CalculationResults object from the frames page.
+ */
 import { CalculationResults } from "../frames/types";
 
 interface ResultsDisplayProps {

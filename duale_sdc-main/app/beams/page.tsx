@@ -1,3 +1,30 @@
+/**
+ * Beams Calculator Page — app/beams/page.tsx
+ *
+ * This is the main orchestration component for the beam analysis workflow.
+ *
+ * RESPONSIBILITIES:
+ *   1. Manages all form state (user inputs) and result state (calculation outputs).
+ *   2. Validates inputs before running calculations.
+ *   3. On form submission, executes the slope-deflection method pipeline:
+ *        FEM → SDE → solve → final moments → reactions → BMSF
+ *   4. Renders the input form and, once solved, the <Results> component.
+ *
+ * PIPELINE (handleSubmit):
+ *   Step 1. calculateFixedEndMoments(span)          → fixedEndMoments[]
+ *   Step 2. generateSlopeDeflectionEquations(...)   → equations[]
+ *   Step 3. Assemble boundary equations:
+ *             eq1 = equations[0].endEquation + equations[1].startEquation
+ *             eq2 = equations[1].endEquation + equations[2].startEquation
+ *             eq3 = equations[2].endEquation (only if last support is hinged/roller)
+ *   Step 4. solveSimultaneousEquations(eq1, eq2, eq3, E, I)  → solution
+ *   Step 5. calculateFinalMoments(equations, θ..., EI)       → moments
+ *   Step 6. calculateReactions(spans, moments)               → reactions
+ *   Step 7. calculateBMSF(spans, moments)                    → BMSF arrays
+ *   Step 8. extractCriticalBMSF(...)                         → critical points
+ *
+ * This is a Client Component because it uses React state hooks.
+ */
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -126,7 +153,9 @@ export default function CalculatePage() {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    // Calculate Fixed End Moments
+    // -----------------------------------------------------------------------
+    // Step 1: Fixed-end moments — apply standard structural formulas
+    // -----------------------------------------------------------------------
     const fixedEndMoments = formData.spans.map((span, index) => {
       const { start, end } = calculateFixedEndMoments(span);
       const spanLabel =
@@ -138,21 +167,33 @@ export default function CalculatePage() {
       };
     });
 
-    // Generate Slope Deflection Equations
+    // -----------------------------------------------------------------------
+    // Step 2: Slope-deflection equations — build symbolic string equations
+    // -----------------------------------------------------------------------
     const equations = generateSlopeDeflectionEquations(
       formData.spans,
       fixedEndMoments,
       formData.sinkingSupports
     );
 
+    // -----------------------------------------------------------------------
+    // Step 3: Boundary conditions — ΣM = 0 at joints B and C (and D if hinged)
+    // Join the end moment of span n with the start moment of span n+1.
+    // -----------------------------------------------------------------------
     const equation1 = equations[0].endEquation + equations[1].startEquation;
     const equation2 = equations[1].endEquation + equations[2].startEquation;
+
+    // The third equation is only needed when the far end of the last span is
+    // a pin or roller (moment at that end must be zero → endEquation = 0).
     const lastSpan = formData.spans[formData.spans.length - 1];
     const equation3 =
       lastSpan.endSupport === "hinged" || lastSpan.endSupport === "roller"
         ? equations[2].endEquation
         : null;
 
+    // -----------------------------------------------------------------------
+    // Step 4: Solve the simultaneous equations via Cramer's Rule
+    // -----------------------------------------------------------------------
     const solutions = solveSimultaneousEquations(
       equation1,
       equation2,
@@ -164,6 +205,10 @@ export default function CalculatePage() {
     const EI = formData.modulusOfElasticity * formData.momentOfInertia;
     if (solutions) {
       setCalculationError(null);
+
+      // -----------------------------------------------------------------------
+      // Step 5: Final moments — substitute solved θ values back into each SDE
+      // -----------------------------------------------------------------------
       const moments = calculateFinalMoments(
         equations,
         solutions.thetaB,
@@ -172,9 +217,16 @@ export default function CalculatePage() {
         EI
       );
 
-      // Calculate reactions using the moments directly instead of from state
+      // -----------------------------------------------------------------------
+      // Step 6: Support reactions — moment equilibrium per span
+      // Note: use the freshly-computed moments directly, not from state, because
+      // React state updates are asynchronous and may not be flushed yet.
+      // -----------------------------------------------------------------------
       const reactions = calculateReactions(formData.spans, moments);
 
+      // -----------------------------------------------------------------------
+      // Step 7 & 8: BM/SF at 100 points per span, then extract critical points
+      // -----------------------------------------------------------------------
       const {
         results: bmsfResults,
         startReactions,
@@ -187,7 +239,7 @@ export default function CalculatePage() {
         startMoments
       );
 
-      // Update state with the final results
+      // Publish all results to state so the Results component can render them
       setResults(fixedEndMoments);
       setSlopeDeflectionEquations(equations);
       setBoundaryCondition(solutions);
