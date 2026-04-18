@@ -1,3 +1,21 @@
+/**
+ * BeamForm — app/components/frame-forms/beam-form.tsx
+ *
+ * Renders one input card per beam for the portal frame calculator.
+ *
+ * Each card contains:
+ *   - Length (m)
+ *   - Moment of Inertia (m⁴)
+ *   - Load Type    — Radix Select populated from FRAME_BEAM_LOAD_TYPES
+ *   - Load Magnitude (kN or kN/m for UDL) — shown only when loadType ≠ NONE
+ *   - Point load distances a / b — shown only when loadType === POINT_AT_DISTANCE
+ *
+ * Calls onBeamChange(index, field, value) for every field change.
+ *
+ * Props:
+ *   beams        — Array of Beam objects (one per beam in the frame).
+ *   onBeamChange — Partial update callback: (beamIndex, fieldName, newValue).
+ */
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {

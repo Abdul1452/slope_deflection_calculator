@@ -1,3 +1,30 @@
+/**
+ * Frames Calculator Page — app/frames/page.tsx
+ *
+ * Orchestration component for the portal frame analysis workflow.
+ *
+ * SUPPORTED FRAME TOPOLOGY:
+ *   Two columns (C1, C2) connected at the top by one beam (BC).
+ *   The solver supports fixed, hinged, or roller bases on either column.
+ *
+ * CALCULATION PIPELINE (handleSubmit):
+ *   Step 1.  calculateFrameFixedEndMoments(member)   per column + beam → FEM results
+ *   Step 2.  generateFrameSlopeDeflectionEquations(…)                  → SDE strings
+ *   Step 3.  generalFrameEquation(equations, hasHingeOrRoller)         → boundary equations
+ *   Step 4.  generateFrameShearEquation(columns, equations)            → shear equation
+ *   Step 5.  simplifyFrameShearEquation(shearEq)                       → simplified + coefficients
+ *   Step 6.  solveFrameEquations(eq1, eq2, eq3, shearEq)               → θB, θC, θD, δ
+ *   Step 7.  calculateFrameFinalMoments(equations, columns, θ…, δ, EI=1) → final moments
+ *   Step 8.  calculateFrameHorizontalReactions(columns, moments)       → H1, H2
+ *   Step 9.  calculateFrameVerticalReactions(beams, moments)           → RA, RD
+ *   Step 10. calculateColumnBMSF(column, index, moments, hReactions)   per column
+ *   Step 11. calculateBeamBMSF(beam, startMoment, vReactions)          per beam
+ *
+ * Note on EI: The solver returns EI·θ values, not plain θ, so calculateFrameFinalMoments
+ * is called with EI=1 to avoid double-multiplying.
+ *
+ * This is a Client Component because it uses React useState hooks.
+ */
 "use client";
 
 import { useState } from "react";
@@ -103,6 +130,9 @@ export default function FramesPage() {
     setCalculationError(null);
 
     try {
+      // -------------------------------------------------------------------
+      // Step 1: Fixed-end moments for each column and beam
+      // -------------------------------------------------------------------
       const columnResults = formData.columns.map((column, index) => ({
         label: `Column ${index + 1}`,
         ...calculateFrameFixedEndMoments(column),
@@ -113,25 +143,34 @@ export default function FramesPage() {
         ...calculateFrameFixedEndMoments(beam),
       }));
 
-      // Generate slope deflection equations
+      // -------------------------------------------------------------------
+      // Step 2: Slope-deflection equations for all members
+      // Columns include the sway (EIδ) term; beams do not.
+      // -------------------------------------------------------------------
       const slopeDeflectionEquations = generateFrameSlopeDeflectionEquations(
         formData.columns,
         formData.beams,
         [...columnResults, ...beamResults]
       );
 
+      // Determine whether any column has a non-fixed base (hinged/roller).
+      // This controls whether a third boundary equation is needed for θD.
       const hasHingeOrRoller = formData.columns.some(
         (column) =>
           column.supportType === "hinged" || column.supportType === "roller"
       );
 
-      // Get boundary equations
+      // -------------------------------------------------------------------
+      // Step 3: Joint equilibrium boundary equations (ΣM = 0 at B and C)
+      // -------------------------------------------------------------------
       const boundaryEquations = generalFrameEquation(
         slopeDeflectionEquations,
         hasHingeOrRoller
       );
 
-      // Calculate shear equation and simplify it
+      // -------------------------------------------------------------------
+      // Step 4 & 5: Shear equation (horizontal equilibrium) and simplification
+      // -------------------------------------------------------------------
       const shearEquation = generateFrameShearEquation(
         formData.columns,
         slopeDeflectionEquations
@@ -141,7 +180,9 @@ export default function FramesPage() {
         shearEquation.shearEquation
       );
 
-      // Solve the system of equations
+      // -------------------------------------------------------------------
+      // Step 6: Solve the 3×3 or 4×4 system by Gaussian elimination
+      // -------------------------------------------------------------------
       const solution = solveFrameEquations(
         boundaryEquations?.eq1 || "",
         boundaryEquations?.eq2 || "",
@@ -149,6 +190,10 @@ export default function FramesPage() {
         simplifiedShearEquation.simplifiedEquation
       );
 
+      // -------------------------------------------------------------------
+      // Step 7: Final moments — substitute θ and δ into each SDE
+      // EI = 1 because the solver returns EI·θ values, not plain θ.
+      // -------------------------------------------------------------------
       const finalMoments = calculateFrameFinalMoments(
         slopeDeflectionEquations,
         formData.columns,
@@ -159,19 +204,22 @@ export default function FramesPage() {
         1
       );
 
-      // Calculate horizontal reactions
+      // -------------------------------------------------------------------
+      // Step 8 & 9: Support reactions (horizontal and vertical)
+      // -------------------------------------------------------------------
       const horizontalReactions = calculateFrameHorizontalReactions(
         formData.columns,
         finalMoments
       );
 
-      // Add vertical reactions calculation
       const verticalReactions = calculateFrameVerticalReactions(
         formData.beams,
         finalMoments
       );
 
-      // Calculate BMSF for columns and beams
+      // -------------------------------------------------------------------
+      // Step 10 & 11: BM/SF data for SVG diagram components
+      // -------------------------------------------------------------------
       const columnBMSF = formData.columns.map((column, index) =>
         calculateColumnBMSF(column, index, finalMoments, horizontalReactions)
       );
@@ -179,7 +227,7 @@ export default function FramesPage() {
       const beamBMSF = formData.beams.map((beam) =>
         calculateBeamBMSF(
           beam,
-          finalMoments[`MBCs`] || 0, // Start moment for beam
+          finalMoments[`MBCs`] || 0, // Start (B-end) moment of the beam
           verticalReactions
         )
       );

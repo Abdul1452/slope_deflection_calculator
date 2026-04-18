@@ -1,3 +1,24 @@
+/**
+ * FrameBendingMomentDiagram — app/components/frame-bm-diagram.tsx
+ *
+ * Renders the Bending Moment Diagram (BMD) for a portal frame as an inline SVG.
+ *
+ * Same layout and scale strategy as frame-sf-diagram.tsx (800×600 viewBox),
+ * but renders moment values in purple (`#a855f7`) with a gradient fill.
+ *
+ * Direction convention (draws moments inward — towards the frame interior):
+ *   - Column 1 (left):  positive moment offset → rightward (into the frame)
+ *   - Column 2 (right): positive moment offset → leftward  (note the −1 multiplier)
+ *   - Beam:             positive moment offset → downward   (sagging = tension on bottom)
+ *
+ * This follows the structural engineering convention of drawing BMD on the
+ * tension side of the member.
+ *
+ * Moment magnitudes are labelled at start, end, and zero-moment positions.
+ *
+ * Props:
+ *   results — CalculationResults object containing columnBMSF and beamBMSF arrays.
+ */
 import { CalculationResults } from "../frames/types";
 
 interface FrameBendingMomentDiagramProps {

@@ -1,3 +1,26 @@
+/**
+ * Results — app/components/results.tsx
+ *
+ * Displays the complete beam analysis results in animated, labelled sections.
+ * Each section uses Framer Motion to fade and slide in with a staggered delay.
+ *
+ * Sections rendered:
+ *   1. Fixed End Moments — FEM values for each span.
+ *   2. Slope-Deflection Equations — symbolic SDE strings per span.
+ *   3. Boundary Conditions — solved θB, θC, θD joint rotations.
+ *   4. Final Moments — numerical member-end moments (kN·m).
+ *   5. Reactions — support reactions (kN).
+ *   6. Critical BM/SF Values — table of structurally notable BM/SF points,
+ *                              followed by the <BMSFCharts> diagrams.
+ *
+ * Props:
+ *   results          — FEM results per span.
+ *   equations        — SDE strings per span.
+ *   boundaryCondition — Solved θ values from the simultaneous equations solver.
+ *   finalMoments     — Dictionary of member-end moments (e.g. { MAB, MBA, … }).
+ *   reactions        — Support reaction dictionary (e.g. { RA, RB, RC, … }).
+ *   criticalPoints   — Critical BMSF positions and values per span.
+ */
 "use client";
 
 import { FixedEndMomentResults, SlopeDeflectionEquation } from "@/typings";

@@ -2,10 +2,36 @@ import { LOAD_TYPES } from "./loadTypes";
 import { FinalMoments } from "./calculateFinalMoments";
 import { Span } from "@/typings";
 
+/**
+ * Support Reaction Calculator (Beams)
+ *
+ * Given the final member-end moments (from calculateFinalMoments) and the
+ * applied loading on each span, this module computes the vertical support
+ * reactions using **moment equilibrium** about one support.
+ *
+ * For a span AB with moments M_AB (at A) and M_BA (at B):
+ *
+ *   ΣM_A = 0:   R_B × L − M_BA − M_AB − (load moment about A) = 0
+ *   → R_B = (M_AB + M_BA + load moment about A) / L
+ *   → R_A = total vertical load − R_B
+ *
+ * At intermediate supports (e.g. joint B between spans AB and BC) the
+ * reaction accumulates contributions from both adjacent spans.
+ */
+
 export interface Reactions {
   [key: string]: number;
 }
 
+/**
+ * Compute support reactions for all spans of the continuous beam.
+ * Accumulates reactions at shared interior nodes (e.g. joint B gets a
+ * contribution from span AB and a contribution from span BC).
+ *
+ * @param spans        Array of span descriptors.
+ * @param finalMoments Dictionary of solved member-end moments (e.g. { MAB, MBA, ... }).
+ * @returns            Dictionary of reactions rounded to whole numbers (e.g. { RA, RB, RC, RD }).
+ */
 export const calculateReactions = (
   spans: Span[],
   finalMoments: FinalMoments
@@ -13,21 +39,20 @@ export const calculateReactions = (
   const reactions: Reactions = {};
 
   spans.forEach((span, index) => {
-    const startNode = String.fromCharCode(65 + index);
-    const endNode = String.fromCharCode(66 + index);
+    const startNode = String.fromCharCode(65 + index); // A, B, C, ...
+    const endNode = String.fromCharCode(66 + index);   // B, C, D, ...
 
-    // Get moments for current span
     const startMoment = finalMoments[`M${startNode}${endNode}`] || 0;
     const endMoment = finalMoments[`M${endNode}${startNode}`] || 0;
 
-    // Calculate reactions based on load type
     const { startReaction, endReaction } = calculateSpanReactions(
       span,
       startMoment,
       endMoment
     );
 
-    // Accumulate reactions at shared supports and round to whole numbers
+    // Accumulate — interior support nodes receive contributions from two spans.
+    // Round to whole numbers for clean display.
     reactions[`R${startNode}`] = Math.round(
       (reactions[`R${startNode}`] || 0) + startReaction
     );
@@ -39,6 +64,14 @@ export const calculateReactions = (
   return reactions;
 };
 
+/**
+ * Compute start and end reactions for a single span using moment equilibrium.
+ *
+ * @param span        The span descriptor.
+ * @param startMoment M at the left (start) support, kN·m.
+ * @param endMoment   M at the right (end) support, kN·m.
+ * @returns           { startReaction, endReaction } in kN.
+ */
 export const calculateSpanReactions = (
   span: Span,
   startMoment: number,
@@ -48,22 +81,22 @@ export const calculateSpanReactions = (
 
   switch (loadType) {
     case LOAD_TYPES.UDL: {
-      // Total load = w * L
+      // Total load = w × L  (w is load per unit length, stored in P)
       const totalLoad = P * L;
 
-      // Take moment about start support (clockwise positive)
-      // endMoment + RB*L - wL²/2 - startMoment = 0
+      // ΣM_A = 0:  R_B × L − wL²/2 − M_BA + M_AB = 0  (using sign convention)
+      // → R_B = (wL²/2 + M_BA + M_AB) / L
       const endReaction = (endMoment + (P * L * L) / 2 + startMoment) / L;
 
-      // Use vertical equilibrium: RA + RB = wL
+      // ΣV = 0:  R_A = wL − R_B
       const startReaction = totalLoad - endReaction;
 
       return { startReaction, endReaction };
     }
 
     case LOAD_TYPES.CENTER_POINT: {
-      // Take moment about start support
-      // endMoment + RB*L - P*L/2 - startMoment = 0
+      // Single point load P at L/2.
+      // ΣM_A = 0:  R_B × L − P × L/2 − M_BA + M_AB = 0
       const endReaction = (endMoment + (P * L) / 2 + startMoment) / L;
       const startReaction = P - endReaction;
 
@@ -74,9 +107,8 @@ export const calculateSpanReactions = (
       if (!span.pointLoadDistances?.a)
         return { startReaction: 0, endReaction: 0 };
 
-      const a = span.pointLoadDistances.a;
-      // Take moment about start support
-      // endMoment + RB*L - P*a - startMoment = 0
+      const a = span.pointLoadDistances.a; // Distance from start to load
+      // ΣM_A = 0:  R_B × L − P × a − M_BA + M_AB = 0
       const endReaction = (endMoment + P * a + startMoment) / L;
       const startReaction = P - endReaction;
       console.log(endReaction);
@@ -85,28 +117,26 @@ export const calculateSpanReactions = (
     }
 
     case LOAD_TYPES.TWO_POINT_LOADS: {
-      // Two equal loads at L/3 and 2L/3
+      // Two equal loads P at L/3 and 2L/3.
       const load1Distance = L / 3;
       const load2Distance = (2 * L) / 3;
 
-      // Take moment about start support
-      // endMoment + RB*L - P*L/3 - P*2L/3 - startMoment = 0
+      // ΣM_A = 0:  R_B × L − P × L/3 − P × 2L/3 − M_BA + M_AB = 0
       const endReaction =
         (endMoment + P * (load1Distance + load2Distance) + startMoment) / L;
 
-      // Use vertical equilibrium: RA + RB = 2P
+      // ΣV = 0:  R_A = 2P − R_B
       const startReaction = 2 * P - endReaction;
 
       return { startReaction, endReaction };
     }
 
     case LOAD_TYPES.THREE_POINT_LOADS: {
-      // Three equal loads at L/4, L/2, and 3L/4
+      // Three equal loads P at L/4, L/2, and 3L/4.
       const load1Distance = L / 4;
       const load2Distance = L / 2;
       const load3Distance = (3 * L) / 4;
 
-      // Take moment about start support
       const endReaction =
         (endMoment +
           P * (load1Distance + load2Distance + load3Distance) +
@@ -118,41 +148,38 @@ export const calculateSpanReactions = (
     }
 
     case LOAD_TYPES.VDL_RIGHT: {
-      // For VDL with highest point on the right end
-      // Total load = 0.5 * P * L (area of the triangle)
+      // Triangular load increasing to the right.
+      // Total load = 0.5 × P × L (area of triangle)
       const totalLoad = 0.5 * P * L;
 
-      // The centroid of the triangular load is located at L/3 from the right end
+      // Centroid of the triangle is at L/3 from the heavy end (right = B),
+      // or equivalently at 2L/3 from the left end (A).
       const centroidDistanceFromRight = L / 3;
 
-      // Take moment about start support
-      // endMoment + RB*L - totalLoad * (L - centroidDistanceFromRight) - startMoment = 0
+      // ΣM_A = 0:  R_B × L − totalLoad × (L − L/3) − M_BA + M_AB = 0
       const endReaction =
         (endMoment +
           totalLoad * (L - centroidDistanceFromRight) +
           startMoment) /
         L;
 
-      // Use vertical equilibrium: RA + RB = totalLoad
       const startReaction = totalLoad - endReaction;
 
       return { startReaction, endReaction };
     }
 
     case LOAD_TYPES.VDL_LEFT: {
-      // For VDL with highest point on the left end
-      // Total load = 0.5 * P * L (area of the triangle)
+      // Triangular load increasing to the left.
+      // Total load = 0.5 × P × L
       const totalLoad = 0.5 * P * L;
 
-      // The centroid of the triangular load is located at L/3 from the left end
+      // Centroid is at L/3 from the heavy end (left = A).
       const centroidDistanceFromLeft = L / 3;
 
-      // Take moment about start support
-      // endMoment + RB*L - totalLoad * centroidDistanceFromLeft - startMoment = 0
+      // ΣM_A = 0:  R_B × L − totalLoad × L/3 − M_BA + M_AB = 0
       const endReaction =
         (endMoment + totalLoad * centroidDistanceFromLeft + startMoment) / L;
 
-      // Use vertical equilibrium: RA + RB = totalLoad
       const startReaction = totalLoad - endReaction;
 
       return { startReaction, endReaction };

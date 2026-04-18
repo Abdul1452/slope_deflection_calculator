@@ -1,3 +1,28 @@
+/**
+ * FrameShearForceDiagram — app/components/frame-sf-diagram.tsx
+ *
+ * Renders the Shear Force Diagram (SFD) for a portal frame as an inline SVG.
+ *
+ * Layout (800×600 viewBox):
+ *   - Left column:  centreline at x = margin.left + columnWidth/2
+ *   - Right column: centreline at x = svgWidth − margin.right − columnWidth/2
+ *   - Beam:         y centreline at y = margin.top + frameHeight/3
+ *   - SFD paths fill 30% of the available width on each side of the column
+ *     centrelines and 30% of the available height above/below the beam.
+ *
+ * Scale factors:
+ *   heightScale      = frameHeight  / maxColumnHeight   (pixels per metre of column)
+ *   columnShearScale = columnWidth  / (2 × maxColumnShear)
+ *   beamLengthScale  = beamSpan     / maxBeamLength
+ *   beamShearScale   = beamHeight   / (2 × maxBeamShear)
+ *
+ * Paths are filled blue with 20% opacity, stroked with a solid blue line.
+ * The zero-value centrelines are dashed white/gray for reference.
+ * Shear magnitudes are labelled at start, end, and zero-crossing positions.
+ *
+ * Props:
+ *   results — CalculationResults object containing columnBMSF and beamBMSF arrays.
+ */
 import { CalculationResults } from "../frames/types";
 
 interface FrameBMSFChartsProps {

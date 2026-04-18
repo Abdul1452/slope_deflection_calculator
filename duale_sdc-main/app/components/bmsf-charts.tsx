@@ -1,3 +1,24 @@
+/**
+ * BMSFCharts — app/components/bmsf-charts.tsx
+ *
+ * Renders the Bending Moment Diagram (BMD) and Shear Force Diagram (SFD)
+ * for the continuous beam analysis using Recharts AreaChart.
+ *
+ * Data flow:
+ *   1. Combines all spans' critical points into a single flat array.
+ *   2. Sorts them by cumulative beam position (x in metres).
+ *   3. Transforms to Recharts data format { position, shearForce, bendingMoment }.
+ *   4. Renders two AreaChart components sharing the same X-axis range.
+ *
+ * Chart choices:
+ *   - SFD: type="linear" — piecewise linear shear is correct for these load types.
+ *   - BMD: type="monotone" — smooth cubic-spline approximation suits moment curves.
+ *   - isAnimationActive={false} — prevents animation clashes with parent Framer Motion.
+ *
+ * Props:
+ *   criticalPoints — Array of SpanCriticalPoints (one per span), each containing
+ *                    the structurally notable BMSF values extracted by criticalBMSF.ts.
+ */
 import {
   Area,
   AreaChart,

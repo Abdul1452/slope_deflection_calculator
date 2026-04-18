@@ -1,5 +1,21 @@
 import { FrameSlopeDeflectionEquation } from "./frameSlopeDeflection";
 
+/**
+ * Frame Boundary Condition Builder
+ *
+ * The boundary conditions for a portal frame come from moment equilibrium at
+ * the two beam-column joints:
+ *
+ *   Joint B:  M_C1e + M_BCs = 0  →  sum of moments from C1 top and beam left end
+ *   Joint C:  M_BCe + M_C2s = 0  →  sum of moments from beam right end and C2 top
+ *
+ * When Column 2 has a hinged or roller base, the base moment M_C2e = 0 provides
+ * an additional (third) boundary equation for the θD unknown.
+ *
+ * Both equations are assembled as simplified symbolic strings (EIθ format)
+ * so they can be passed to the shear equation solver.
+ */
+
 export type FrameSolution = {
   thetaB: number;
   thetaC: number;
@@ -13,13 +29,22 @@ export type BoundaryEquations = {
   eq3?: string;
 } | null;
 
-// Helper function to format coefficients (shared between both formatters)
+// ---------------------------------------------------------------------------
+// Internal helpers: coefficient formatters
+// ---------------------------------------------------------------------------
+
+/**
+ * Format a coefficient for display: omit "1" prefix (e.g. "1EIθB" → "EIθB").
+ */
 const formatCoefficient = (coeff: number): string => {
   const absCoeff = Math.abs(coeff);
   return absCoeff === 1 ? "" : absCoeff.toFixed(2);
 };
 
-// Original format equation function for θB and θC equations
+/**
+ * Simplify a combined equation string (θB, θC, EIδ terms only).
+ * Used for the standard case where both column bases are fixed (no θD).
+ */
 const formatEquation = (equation: string): string => {
   const terms = equation
     .replace(/\s+/g, "")
@@ -54,6 +79,7 @@ const formatEquation = (equation: string): string => {
     }
   }
 
+  // Reconstruct a clean signed string from accumulated coefficients
   const parts: string[] = [];
 
   if (coeffB !== 0) parts.push(`${formatCoefficient(coeffB)}EIθB`);
@@ -74,7 +100,10 @@ const formatEquation = (equation: string): string => {
     .join("");
 };
 
-// New format equation function for θD equations
+/**
+ * Simplify a combined equation string that also contains a θD term.
+ * Used for the extended case (hinged/roller Column 2 base).
+ */
 const formatEquationWithThetaD = (equation: string): string => {
   const terms = equation
     .replace(/\s+/g, "")
@@ -144,11 +173,19 @@ const formatEquationWithThetaD = (equation: string): string => {
   return result;
 };
 
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/**
+ * Build joint equilibrium equations for a standard frame (both bases fixed).
+ * Returns eq1 (joint B) and eq2 (joint C) as simplified strings.
+ */
 export const getFrameBoundaryEquations = (
   equations: FrameSlopeDeflectionEquation[]
 ): BoundaryEquations => {
-  // Changed return type from { eq1: string; eq2: string } | null to BoundaryEquations
   try {
+    // Retrieve the relevant sub-equations by member label
     const c1End = equations.find((eq) => eq.memberLabel === "C1")?.endEquation;
     const beamStart = equations.find(
       (eq) => eq.memberLabel === "BC"
@@ -165,7 +202,9 @@ export const getFrameBoundaryEquations = (
     }
 
     return {
+      // Joint B: M_C1e + M_BCs = 0
       eq1: formatEquation(c1End + " + " + beamStart),
+      // Joint C: M_BCe + M_C2s = 0
       eq2: formatEquation(beamEnd + " + " + c2Start),
     };
   } catch (error) {
@@ -174,6 +213,10 @@ export const getFrameBoundaryEquations = (
   }
 };
 
+/**
+ * Build joint equilibrium equations for a frame with a non-fixed Column 2 base.
+ * May return an optional third equation (M_C2e = 0) when hasHingeOrRoller is true.
+ */
 export const getFrameBoundaryEquationsExtended = (
   equations: FrameSlopeDeflectionEquation[],
   hasHingeOrRoller: boolean
@@ -189,6 +232,7 @@ export const getFrameBoundaryEquationsExtended = (
     const c2Start = equations.find(
       (eq) => eq.memberLabel === "C2"
     )?.startEquation;
+    // End of Column 2 (base moment) — used for the extra equation
     const c2End = equations.find((eq) => eq.memberLabel === "C2")?.endEquation;
 
     if (!c1End || !beamStart || !beamEnd || !c2Start || !c2End) {
@@ -200,7 +244,7 @@ export const getFrameBoundaryEquationsExtended = (
       eq2: formatEquationWithThetaD(beamEnd + " + " + c2Start),
     };
 
-    // Add third equation if there's a hinge or roller, using the new formatter
+    // Third equation: M_C2e = 0  (zero moment at hinged/roller column base)
     if (hasHingeOrRoller && c2End) {
       return {
         ...baseEquations,
@@ -215,6 +259,10 @@ export const getFrameBoundaryEquationsExtended = (
   }
 };
 
+/**
+ * Select and return the appropriate set of boundary equations based on
+ * whether any column base is hinged or rollered.
+ */
 export const generalFrameEquation = (
   equations: FrameSlopeDeflectionEquation[],
   hasHingeOrRoller: boolean
