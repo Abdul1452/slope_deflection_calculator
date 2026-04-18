@@ -1,5 +1,15 @@
 import { ColumnSupportType } from "../frames/types";
 
+/**
+ * Fixed-End Moment Formulas for Frame Members
+ *
+ * Identical mathematical formulas to the beam FEM calculator (calculations.ts),
+ * but applied to both columns and the beam of a portal frame.
+ *
+ * The key difference: columns with a hinged or roller base return zero moments
+ * because those support conditions prevent moment development at that end.
+ */
+
 interface FrameMember {
   length: number;
   loadMagnitude: number;
@@ -16,12 +26,19 @@ export interface FixedEndMoments {
   end: number;
 }
 
+/**
+ * Calculate fixed-end moments for a single frame member (column or beam).
+ *
+ * @param member - The frame member descriptor including load and support info.
+ * @returns { start, end } moments in kN·m.
+ */
 export const calculateFrameFixedEndMoments = (
   member: FrameMember
 ): FixedEndMoments => {
   const { length: L, loadMagnitude: P, supportType } = member;
 
-  // Return zero moments if support type is hinged or roller
+  // Hinged/roller supports cannot develop moments, so FEMs are zero at those ends.
+  // The slope-deflection method handles these via boundary conditions instead.
   if (supportType === "hinged" || supportType === "roller") {
     return {
       start: 0,
@@ -31,8 +48,7 @@ export const calculateFrameFixedEndMoments = (
 
   switch (member.loadType) {
     case "UDL": {
-      // Changed from FRAME_BEAM_LOAD_TYPES.UDL
-      // FEMab = -wL²/12, FEMba = wL²/12
+      // FEM_start = −wL²/12,  FEM_end = +wL²/12
       const moment = (P * Math.pow(L, 2)) / 12;
       return {
         start: -moment,
@@ -41,8 +57,7 @@ export const calculateFrameFixedEndMoments = (
     }
 
     case "CENTER_POINT": {
-      // Changed from FRAME_BEAM_LOAD_TYPES.CENTER_POINT
-      // FEMab = -PL/8, FEMba = PL/8
+      // FEM_start = −PL/8,  FEM_end = +PL/8
       const moment = (P * L) / 8;
       return {
         start: -moment,
@@ -51,7 +66,7 @@ export const calculateFrameFixedEndMoments = (
     }
 
     case "POINT_AT_DISTANCE": {
-      // Changed from FRAME_BEAM_LOAD_TYPES.POINT_AT_DISTANCE
+      // FEM_start = −Pb²a/L²,  FEM_end = +Pba²/L²
       if (!member.pointLoadDistances?.a) {
         console.log("No point load distance provided");
         return { start: 0, end: 0 };

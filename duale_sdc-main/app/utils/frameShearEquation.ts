@@ -1,6 +1,28 @@
 import { Column } from "../frames/types";
 import { FrameSlopeDeflectionEquation } from "./frameSlopeDeflection";
 
+/**
+ * Frame Shear Equation Builder and Solver
+ *
+ * The slope-deflection method for frames requires one additional equation
+ * beyond the joint-equilibrium conditions: **horizontal equilibrium** of the
+ * entire frame (the "shear equation" or "sway equation").
+ *
+ * For a portal frame with two columns:
+ *
+ *   H₁ + H₂ + ΣP_horizontal = 0
+ *
+ * where the horizontal reaction at the base of each column is:
+ *
+ *   H_i = (M_i_base + M_i_top ± P_i × h_i/2) / h_i
+ *
+ * Substituting the slope-deflection expressions for M gives an equation
+ * in terms of EIθB, EIθC, EIθD, and EIδ which is then simplified and
+ * combined with the boundary equations to form the final system.
+ *
+ * The system is solved by Gaussian elimination (partial pivoting).
+ */
+
 export interface ShearEquationResult {
   shearEquation: string;
 }
