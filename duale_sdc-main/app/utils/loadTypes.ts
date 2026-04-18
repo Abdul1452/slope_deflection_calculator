@@ -1,3 +1,9 @@
+/**
+ * Load type identifier constants for the beams calculator.
+ *
+ * Each value corresponds to a distinct set of fixed-end moment formulas
+ * in calculations.ts and a specific BM/SF integration branch in calculateBMSF.ts.
+ */
 export const LOAD_TYPES = {
   NONE: "none",
   CENTER_POINT: "center-point",
@@ -9,6 +15,7 @@ export const LOAD_TYPES = {
   VDL_LEFT: "vdl-left",
 } as const;
 
+/** Human-readable display labels shown in the load-type select dropdown. */
 export const LOAD_TYPE_LABELS = {
   [LOAD_TYPES.NONE]: "No Load",
   [LOAD_TYPES.CENTER_POINT]: "Point load at center",
