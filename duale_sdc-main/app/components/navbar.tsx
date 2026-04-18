@@ -29,7 +29,7 @@ export function Navbar() {
               <Link
                 href="/beams"
                 className={`text-sm font-medium transition-colors hover:text-indigo-600 dark:hover:text-indigo-400 ${
-                  pathname === "/calculate"
+                  pathname === "/beams"
                     ? "text-indigo-600 dark:text-indigo-400"
                     : "text-gray-600 dark:text-gray-300"
                 }`}
@@ -37,9 +37,9 @@ export function Navbar() {
                 Beams
               </Link>
               <Link
-                href="/beams"
+                href="/frames"
                 className={`text-sm font-medium transition-colors hover:text-indigo-600 dark:hover:text-indigo-400 ${
-                  pathname === "/calculate"
+                  pathname === "/frames"
                     ? "text-indigo-600 dark:text-indigo-400"
                     : "text-gray-600 dark:text-gray-300"
                 }`}

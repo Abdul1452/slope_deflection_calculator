@@ -125,8 +125,12 @@ export default function FrameShearForceDiagram({
           Shear Force Diagram
         </h3>
       </div>
-      <div className="bg-gray-900/60 backdrop-blur-md p-6 rounded-xl shadow-xl">
-        <svg width={svgWidth} height={svgHeight}>
+      <div className="bg-gray-900/60 backdrop-blur-md p-6 rounded-xl shadow-xl overflow-x-auto">
+        <svg
+          viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+          width="100%"
+          style={{ minWidth: "320px" }}
+        >
           {/* Define gradients */}
           <defs>
             <linearGradient id="sfGradient" x1="0%" y1="0%" x2="0%" y2="100%">

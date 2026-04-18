@@ -52,6 +52,7 @@ export default function FramesPage() {
   });
 
   const [results, setResults] = useState<CalculationResults | null>(null);
+  const [calculationError, setCalculationError] = useState<string | null>(null);
 
   const handleNumberOfColumnsChange = (value: number) => {
     const newColumns = Array(value)
@@ -99,104 +100,112 @@ export default function FramesPage() {
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setCalculationError(null);
 
-    const columnResults = formData.columns.map((column, index) => ({
-      label: `Column ${index + 1}`,
-      ...calculateFrameFixedEndMoments(column),
-    }));
+    try {
+      const columnResults = formData.columns.map((column, index) => ({
+        label: `Column ${index + 1}`,
+        ...calculateFrameFixedEndMoments(column),
+      }));
 
-    const beamResults = formData.beams.map((beam, index) => ({
-      label: `Beam ${index + 1}`,
-      ...calculateFrameFixedEndMoments(beam),
-    }));
+      const beamResults = formData.beams.map((beam, index) => ({
+        label: `Beam ${index + 1}`,
+        ...calculateFrameFixedEndMoments(beam),
+      }));
 
-    // Generate slope deflection equations
-    const slopeDeflectionEquations = generateFrameSlopeDeflectionEquations(
-      formData.columns,
-      formData.beams,
-      [...columnResults, ...beamResults]
-    );
+      // Generate slope deflection equations
+      const slopeDeflectionEquations = generateFrameSlopeDeflectionEquations(
+        formData.columns,
+        formData.beams,
+        [...columnResults, ...beamResults]
+      );
 
-    const hasHingeOrRoller = formData.columns.some(
-      (column) =>
-        column.supportType === "hinged" || column.supportType === "roller"
-    );
+      const hasHingeOrRoller = formData.columns.some(
+        (column) =>
+          column.supportType === "hinged" || column.supportType === "roller"
+      );
 
-    // Get boundary equations
-    const boundaryEquations = generalFrameEquation(
-      slopeDeflectionEquations,
-      hasHingeOrRoller
-    );
+      // Get boundary equations
+      const boundaryEquations = generalFrameEquation(
+        slopeDeflectionEquations,
+        hasHingeOrRoller
+      );
 
-    // Calculate shear equation and simplify it
-    const shearEquation = generateFrameShearEquation(
-      formData.columns,
-      slopeDeflectionEquations
-    );
+      // Calculate shear equation and simplify it
+      const shearEquation = generateFrameShearEquation(
+        formData.columns,
+        slopeDeflectionEquations
+      );
 
-    const simplifiedShearEquation = simplifyFrameShearEquation(
-      shearEquation.shearEquation
-    );
+      const simplifiedShearEquation = simplifyFrameShearEquation(
+        shearEquation.shearEquation
+      );
 
-    // Solve the system of equations
-    const solution = solveFrameEquations(
-      boundaryEquations?.eq1 || "",
-      boundaryEquations?.eq2 || "",
-      boundaryEquations?.eq3 || null,
-      simplifiedShearEquation.simplifiedEquation
-    );
+      // Solve the system of equations
+      const solution = solveFrameEquations(
+        boundaryEquations?.eq1 || "",
+        boundaryEquations?.eq2 || "",
+        boundaryEquations?.eq3 || null,
+        simplifiedShearEquation.simplifiedEquation
+      );
 
-    const finalMoments = calculateFrameFinalMoments(
-      slopeDeflectionEquations,
-      formData.columns,
-      solution.thetaB,
-      solution.thetaC,
-      solution.thetaD,
-      solution.delta,
-      1
-    );
+      const finalMoments = calculateFrameFinalMoments(
+        slopeDeflectionEquations,
+        formData.columns,
+        solution.thetaB,
+        solution.thetaC,
+        solution.thetaD,
+        solution.delta,
+        1
+      );
 
-    // Calculate horizontal reactions
-    const horizontalReactions = calculateFrameHorizontalReactions(
-      formData.columns,
-      finalMoments
-    );
+      // Calculate horizontal reactions
+      const horizontalReactions = calculateFrameHorizontalReactions(
+        formData.columns,
+        finalMoments
+      );
 
-    // Add vertical reactions calculation
-    const verticalReactions = calculateFrameVerticalReactions(
-      formData.beams,
-      finalMoments
-    );
+      // Add vertical reactions calculation
+      const verticalReactions = calculateFrameVerticalReactions(
+        formData.beams,
+        finalMoments
+      );
 
-    // Calculate BMSF for columns and beams
-    const columnBMSF = formData.columns.map((column, index) =>
-      calculateColumnBMSF(column, index, finalMoments, horizontalReactions)
-    );
+      // Calculate BMSF for columns and beams
+      const columnBMSF = formData.columns.map((column, index) =>
+        calculateColumnBMSF(column, index, finalMoments, horizontalReactions)
+      );
 
-    const beamBMSF = formData.beams.map((beam) =>
-      calculateBeamBMSF(
-        beam,
-        finalMoments[`MBCs`] || 0, // Start moment for beam
-        verticalReactions
-      )
-    );
+      const beamBMSF = formData.beams.map((beam) =>
+        calculateBeamBMSF(
+          beam,
+          finalMoments[`MBCs`] || 0, // Start moment for beam
+          verticalReactions
+        )
+      );
 
-    setResults({
-      columns: columnResults,
-      beams: beamResults,
-      slopeDeflectionEquations,
-      boundaryEquations,
-      shearEquation: {
-        ...shearEquation,
-        simplifiedEquation: simplifiedShearEquation,
-      },
-      solution,
-      finalMoments,
-      horizontalReactions,
-      verticalReactions,
-      columnBMSF,
-      beamBMSF,
-    });
+      setResults({
+        columns: columnResults,
+        beams: beamResults,
+        slopeDeflectionEquations,
+        boundaryEquations,
+        shearEquation: {
+          ...shearEquation,
+          simplifiedEquation: simplifiedShearEquation,
+        },
+        solution,
+        finalMoments,
+        horizontalReactions,
+        verticalReactions,
+        columnBMSF,
+        beamBMSF,
+      });
+    } catch (err: any) {
+      setCalculationError(
+        err?.message ||
+          "An error occurred during calculation. Please check your inputs."
+      );
+    }
   };
 
   return (
@@ -275,6 +284,12 @@ export default function FramesPage() {
             SUBMIT
           </Button>
         </form>
+
+        {calculationError && (
+          <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/40 border border-red-300 dark:border-red-700 rounded-lg text-red-700 dark:text-red-300 text-sm">
+            {calculationError}
+          </div>
+        )}
 
         {results && (
           <div className="mt-8 space-y-8">

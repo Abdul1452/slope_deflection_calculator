@@ -108,7 +108,7 @@ export const calculateSpanReactions = (
 
       // Take moment about start support
       const endReaction =
-        (-endMoment +
+        (endMoment +
           P * (load1Distance + load2Distance + load3Distance) +
           startMoment) /
         L;

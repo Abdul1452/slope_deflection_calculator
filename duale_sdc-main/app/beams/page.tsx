@@ -62,6 +62,7 @@ export default function CalculatePage() {
   const [criticalPoints, setCriticalPoints] = useState<SpanCriticalPoints[]>(
     []
   );
+  const [calculationError, setCalculationError] = useState<string | null>(null);
 
   const [isFormValid, setIsFormValid] = useState(false);
 
@@ -162,6 +163,7 @@ export default function CalculatePage() {
 
     const EI = formData.modulusOfElasticity * formData.momentOfInertia;
     if (solutions) {
+      setCalculationError(null);
       const moments = calculateFinalMoments(
         equations,
         solutions.thetaB,
@@ -192,6 +194,10 @@ export default function CalculatePage() {
       setFinalMoments(moments);
       setReactions(reactions);
       setCriticalPoints(criticalPoints);
+    } else {
+      setCalculationError(
+        "Could not solve the system of equations. Please check your inputs — the structure may be unstable or the values may be inconsistent."
+      );
     }
   };
 
@@ -311,6 +317,15 @@ export default function CalculatePage() {
               </div>
             </form>
           </Card>
+          {calculationError && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4 p-4 bg-red-50 dark:bg-red-900/40 border border-red-300 dark:border-red-700 rounded-lg text-red-700 dark:text-red-300 text-sm"
+            >
+              {calculationError}
+            </motion.div>
+          )}
           {results.length > 0 && (
             <div className="mt-8 space-y-6">
               <Results

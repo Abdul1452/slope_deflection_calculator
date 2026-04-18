@@ -22,23 +22,27 @@ export default function FrameBendingMomentDiagram({
   const rightColumnX = svgWidth - margin.right - columnWidth / 2;
   const beamY = margin.top + frameHeight / 3;
 
-  // Process data and calculate scales
-  const maxColumnHeight = Math.max(
-    ...results.columnBMSF[0].sections.flatMap((s) => s.x),
-    ...results.columnBMSF[1].sections.flatMap((s) => s.x)
-  );
-  const maxColumnMoment = Math.max(
-    ...results.columnBMSF[0].sections
-      .flatMap((s) => s.bendingMoment)
-      .map(Math.abs),
-    ...results.columnBMSF[1].sections
-      .flatMap((s) => s.bendingMoment)
-      .map(Math.abs)
-  );
-  const maxBeamLength = Math.max(...results.beamBMSF[0].x);
-  const maxBeamMoment = Math.max(
-    ...results.beamBMSF[0].bendingMoment.map(Math.abs)
-  );
+  // Process data and calculate scales — guard against missing/empty arrays
+  const col0Sections = results.columnBMSF?.[0]?.sections ?? [];
+  const col1Sections = results.columnBMSF?.[1]?.sections ?? [];
+  const beam0 = results.beamBMSF?.[0];
+
+  const maxColumnHeight = [
+    ...col0Sections.flatMap((s) => s.x),
+    ...col1Sections.flatMap((s) => s.x),
+  ].reduce((max, val) => Math.max(max, val), 0);
+
+  const maxColumnMoment = [
+    ...col0Sections.flatMap((s) => s.bendingMoment).map(Math.abs),
+    ...col1Sections.flatMap((s) => s.bendingMoment).map(Math.abs),
+  ].reduce((max, val) => Math.max(max, val), 1);
+
+  const maxBeamLength = beam0
+    ? beam0.x.reduce((max, val) => Math.max(max, val), 0)
+    : 0;
+  const maxBeamMoment = beam0
+    ? beam0.bendingMoment.map(Math.abs).reduce((max, val) => Math.max(max, val), 1)
+    : 1;
 
   // Scale factors
   const heightScale = frameHeight / maxColumnHeight;
@@ -48,8 +52,10 @@ export default function FrameBendingMomentDiagram({
 
   // Generate paths
   const generateColumnPath = (columnIndex: number) => {
+    const sections = columnIndex === 0 ? col0Sections : col1Sections;
+    if (!sections.length) return "";
     const baseX = columnIndex === 0 ? leftColumnX : rightColumnX;
-    const points = results.columnBMSF[columnIndex].sections.flatMap((section) =>
+    const points = sections.flatMap((section) =>
       section.x.map((x, i) => {
         const height = Math.min(
           x * heightScale,
@@ -80,10 +86,11 @@ export default function FrameBendingMomentDiagram({
   };
 
   const generateBeamPath = () => {
-    const points = results.beamBMSF[0].x.map((x, i) => ({
+    if (!beam0?.x?.length) return "";
+    const points = beam0.x.map((x, i) => ({
       x: leftColumnX + x * beamLengthScale,
-      y: beamY + results.beamBMSF[0].bendingMoment[i] * beamMomentScale, // Note: positive is down
-      moment: results.beamBMSF[0].bendingMoment[i],
+      y: beamY + beam0.bendingMoment[i] * beamMomentScale, // Note: positive is down
+      moment: beam0.bendingMoment[i],
     }));
 
     // Create curved path for beam
@@ -102,8 +109,12 @@ export default function FrameBendingMomentDiagram({
           Bending Moment Diagram
         </h3>
       </div>
-      <div className="bg-gray-900/60 backdrop-blur-md p-6 rounded-xl shadow-xl">
-        <svg width={svgWidth} height={svgHeight}>
+      <div className="bg-gray-900/60 backdrop-blur-md p-6 rounded-xl shadow-xl overflow-x-auto">
+        <svg
+          viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+          width="100%"
+          style={{ minWidth: "320px" }}
+        >
           {/* Define gradients */}
           <defs>
             <linearGradient id="bmGradient" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -113,33 +124,39 @@ export default function FrameBendingMomentDiagram({
           </defs>
 
           {/* Frame centerlines */}
-          <line
-            x1={leftColumnX}
-            y1={svgHeight - margin.bottom}
-            x2={leftColumnX}
-            y2={beamY}
-            stroke="rgba(255, 255, 255, 0.3)"
-            strokeWidth="1.5"
-            strokeDasharray="6 4"
-          />
-          <line
-            x1={rightColumnX}
-            y1={svgHeight - margin.bottom}
-            x2={rightColumnX}
-            y2={beamY}
-            stroke="rgba(255, 255, 255, 0.3)"
-            strokeWidth="1.5"
-            strokeDasharray="6 4"
-          />
-          <line
-            x1={leftColumnX}
-            y1={beamY}
-            x2={rightColumnX}
-            y2={beamY}
-            stroke="rgba(255, 255, 255, 0.3)"
-            strokeWidth="1.5"
-            strokeDasharray="6 4"
-          />
+          {col0Sections.length > 0 && (
+            <line
+              x1={leftColumnX}
+              y1={svgHeight - margin.bottom}
+              x2={leftColumnX}
+              y2={beamY}
+              stroke="rgba(255, 255, 255, 0.3)"
+              strokeWidth="1.5"
+              strokeDasharray="6 4"
+            />
+          )}
+          {col1Sections.length > 0 && (
+            <line
+              x1={rightColumnX}
+              y1={svgHeight - margin.bottom}
+              x2={rightColumnX}
+              y2={beamY}
+              stroke="rgba(255, 255, 255, 0.3)"
+              strokeWidth="1.5"
+              strokeDasharray="6 4"
+            />
+          )}
+          {beam0?.x?.length && (
+            <line
+              x1={leftColumnX}
+              y1={beamY}
+              x2={rightColumnX}
+              y2={beamY}
+              stroke="rgba(255, 255, 255, 0.3)"
+              strokeWidth="1.5"
+              strokeDasharray="6 4"
+            />
+          )}
 
           {/* Column and Beam bending moment diagrams */}
           <path
@@ -165,8 +182,8 @@ export default function FrameBendingMomentDiagram({
           />
 
           {/* Moment values */}
-          {results.columnBMSF.map((column, colIndex) =>
-            column.sections.flatMap((section, sectionIndex) =>
+          {[col0Sections, col1Sections].map((sections, colIndex) =>
+            sections.flatMap((section, sectionIndex) =>
               section.bendingMoment.map((moment, i) => {
                 const height = Math.min(
                   section.x[i] * heightScale,
@@ -194,15 +211,15 @@ export default function FrameBendingMomentDiagram({
           )}
 
           {/* Beam moment values */}
-          {results.beamBMSF[0].bendingMoment.map((moment, i) => {
-            const x = results.beamBMSF[0].x[i];
+          {beam0?.bendingMoment?.map((moment, i) => {
+            const x = beam0.x[i];
 
             // Only show labels for start, end, and maximum moment points
             if (
               x === 0 || // Start point
-              x === results.beamBMSF[0].x[results.beamBMSF[0].x.length - 1] || // End point
+              x === beam0.x[beam0.x.length - 1] || // End point
               Math.abs(moment) ===
-                Math.max(...results.beamBMSF[0].bendingMoment.map(Math.abs)) // Max moment point
+                Math.max(...beam0.bendingMoment.map(Math.abs)) // Max moment point
             ) {
               return (
                 <text
